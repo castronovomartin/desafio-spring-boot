@@ -10,9 +10,9 @@ INSERT INTO estados_tarea (name) VALUES
 -- Preloaded users (password: 'password' for all)
 -- -------------------------------------------------------
 INSERT INTO usuarios (username, password, full_name) VALUES
-                                                         ('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.', 'Administrator'),
-                                                         ('user1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.', 'User One'),
-                                                         ('user2', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.', 'User Two');
+                                                         ('admin', '$2a$10$82SqzhDAhWKsm9Q0KpxezeCPDt1vZVF647RkiO29hfA2r8oyC5GSS', 'Administrator'),
+                                                         ('user1', '$2a$10$82SqzhDAhWKsm9Q0KpxezeCPDt1vZVF647RkiO29hfA2r8oyC5GSS', 'User One'),
+                                                         ('user2', '$2a$10$82SqzhDAhWKsm9Q0KpxezeCPDt1vZVF647RkiO29hfA2r8oyC5GSS', 'User Two');
 
 -- -------------------------------------------------------
 -- Sample tasks (requires estados_tarea and usuarios above)

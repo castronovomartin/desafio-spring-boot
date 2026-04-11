@@ -30,7 +30,7 @@ public class AuthServiceImpl implements AuthService {
                )
          );
       } catch (BadCredentialsException ex) {
-         throw new UnauthorizedException("Invalid username or password", ex);
+         throw new UnauthorizedException("Invalid username or password");
       }
 
       return new LoginResponse()
