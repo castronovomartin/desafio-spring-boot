@@ -12,17 +12,17 @@ import com.nuevospa.taskmanager.repository.TaskRepository;
 import com.nuevospa.taskmanager.repository.TaskStatusRepository;
 import com.nuevospa.taskmanager.repository.UserRepository;
 import com.nuevospa.taskmanager.service.TaskService;
-
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class TaskServiceImpl implements TaskService {
 
    private final TaskRepository taskRepository;
@@ -30,16 +30,17 @@ public class TaskServiceImpl implements TaskService {
    private final UserRepository userRepository;
    private final TaskMapper taskMapper;
 
-   // Java 21 Record — encapsulates related validation data internally
    private record TaskValidationData(Task task, TaskStatus status) {}
 
    @Override
+   @Transactional(readOnly = true)
    public List<TaskResponse> getAllTasks() {
       return taskMapper.toResponseList(
             taskRepository.findAllByOrderByCreatedAtDesc());
    }
 
    @Override
+   @Transactional(readOnly = true)
    public TaskResponse getTaskById(Long id) {
       Task task = findTaskById(id);
       return taskMapper.toResponse(task);
