@@ -14,7 +14,8 @@ Permite crear, listar, actualizar y eliminar tareas con autenticación mediante 
 - [Requisitos previos](#requisitos-previos)
 - [Instalación y ejecución](#instalación-y-ejecución)
 - [Credenciales de prueba](#credenciales-de-prueba)
-- [Documentación interactiva](#documentación-interactiva-swagger-ui)
+- [Guía de pruebas paso a paso](#guía-de-pruebas-paso-a-paso)
+- [Consola H2](#consola-h2)
 - [Ejemplos de uso con cURL](#ejemplos-de-uso-con-curl)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Ejecución de tests](#ejecución-de-tests)
@@ -142,6 +143,10 @@ Se aprovechan features modernas del lenguaje:
   eliminado en 6). Se usa `SecurityFilterChain` bean.
 - Passwords almacenados con BCrypt — nunca en texto plano.
 - Swagger UI correctamente integrado con Spring Security mediante `OpenApiConfig`.
+- `AuthenticationEntryPoint` configurado explícitamente para retornar `401` en lugar
+  del `403` por defecto de Spring Security en requests sin autenticación.
+- `DaoAuthenticationProvider` configurado explícitamente con `ProviderManager` para
+  garantizar que el `BCryptPasswordEncoder` correcto se usa en la comparación de credenciales.
 
 ### Manejo de errores
 `GlobalExceptionHandler` con `@RestControllerAdvice` centraliza el manejo de todas
@@ -195,6 +200,10 @@ mvn spring-boot:run
 
 La aplicación estará disponible en `http://localhost:8080`.
 
+> **Importante:** La base de datos H2 es in-memory — se resetea en cada reinicio.
+> Los datos precargados (`usuarios`, `estados_tarea` y tareas de ejemplo) se recrean
+> automáticamente desde `schema.sql` y `data.sql` en cada arranque.
+
 ---
 
 ## Credenciales de prueba
@@ -218,52 +227,276 @@ Los estados de tarea disponibles son:
 
 ---
 
-## Documentación interactiva (Swagger UI)
+## Guía de pruebas paso a paso
 
-Una vez que la aplicación esté corriendo, accedé a:
+### Acceder a Swagger UI
+
+Una vez que la aplicación esté corriendo, abrí en el browser:
 
 ```
 http://localhost:8080/swagger-ui.html
 ```
 
-### Cómo autenticarse en Swagger UI
+Vas a ver la interfaz con dos secciones: **Authentication** y **Tasks**, y el botón
+**Authorize** 🔒 arriba a la derecha.
 
-1. Ejecutá el endpoint `POST /auth/login` con cualquiera de las credenciales de prueba
-2. Copiá el valor del campo `token` de la respuesta
-3. Hacé click en el botón **Authorize** 🔒 (arriba a la derecha)
-4. Pegá el token en el campo **Value** y hacé click en **Authorize**
-5. Ahora todos los endpoints protegidos están disponibles para probar
+---
 
-### Consola H2
+### Paso 1 — Obtener el token JWT
 
-La consola de H2 para inspeccionar la base de datos está disponible en:
+1. Expandí `POST /auth/login` haciendo click en el endpoint
+2. Hacé click en **Try it out**
+3. Reemplazá el contenido del Request body con:
+```json
+{
+  "username": "admin",
+  "password": "password"
+}
+```
+4. Hacé click en **Execute**
+5. En **Server response** vas a ver `Code: 200` con este body:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "type": "Bearer"
+}
+```
+6. Copiá el valor completo del campo `token`
 
+---
+
+### Paso 2 — Autenticarse en Swagger UI
+
+1. Hacé click en el botón **Authorize** 🔒 arriba a la derecha
+2. En el campo **Value** pegá el token copiado — **solo el token, sin escribir "Bearer" adelante**
+3. Hacé click en **Authorize**
+4. Hacé click en **Close**
+
+A partir de este momento todos los endpoints con el candado 🔒 van a funcionar
+correctamente. Swagger agrega el header `Authorization: Bearer <token>` automáticamente.
+
+---
+
+### Paso 3 — Listar todas las tareas
+
+1. Expandí `GET /tasks`
+2. Hacé click en **Try it out** → **Execute**
+3. **Resultado esperado (`200 OK`):**
+```json
+[
+  {
+    "id": 1,
+    "title": "Setup project infrastructure",
+    "description": "Initialize repository, configure CI/CD pipeline",
+    "status": "PENDING",
+    "created_at": "2026-04-11T14:30:17.671675Z",
+    "updated_at": "2026-04-11T14:30:17.671675Z"
+  },
+  {
+    "id": 2,
+    "title": "Design database schema",
+    "description": "Define all entities and relationships for the system",
+    "status": "IN_PROGRESS",
+    "created_at": "2026-04-11T14:30:17.671675Z",
+    "updated_at": "2026-04-11T14:30:17.671675Z"
+  },
+  {
+    "id": 3,
+    "title": "Implement authentication",
+    "description": "JWT login endpoint and security filter chain",
+    "status": "COMPLETED",
+    "created_at": "2026-04-11T14:30:17.671675Z",
+    "updated_at": "2026-04-11T14:30:17.671675Z"
+  }
+]
+```
+
+> **Nota:** Las tres tareas precargadas se insertan con `NOW()` en el mismo instante
+> al arrancar la aplicación. Como sus timestamps son idénticos, el ordenamiento
+> por `created_at` descendente las muestra en orden de inserción. Con tareas creadas
+> en momentos distintos el orden descendente (más reciente primero) funcionaría correctamente.
+
+---
+
+### Paso 4 — Obtener tarea por ID
+
+1. Expandí `GET /tasks/{id}`
+2. **Try it out** → ingresá `1` en el campo `id` → **Execute**
+3. **Resultado esperado (`200 OK`):** la tarea con `id: 1`
+
+Para probar el caso de error, ingresá `999`:
+- **Resultado esperado (`404`):**
+```json
+{
+  "message": "Task not found with id: 999",
+  "status": 404,
+  "timestamp": "..."
+}
+```
+
+---
+
+### Paso 5 — Crear una nueva tarea
+
+1. Expandí `POST /tasks`
+2. **Try it out** → reemplazá el body con:
+```json
+{
+  "title": "Mi nueva tarea",
+  "description": "Descripción de la tarea",
+  "status_id": 1
+}
+```
+3. **Execute**
+4. **Resultado esperado (`201 Created`):**
+```json
+{
+  "id": 4,
+  "title": "Mi nueva tarea",
+  "description": "Descripción de la tarea",
+  "status": "PENDING",
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+Para probar validaciones:
+
+**Sin título (`400`):**
+```json
+{
+  "description": "Sin título",
+  "status_id": 1
+}
+```
+Respuesta: `"message": "title: no debe ser nulo"`
+
+**Con status inexistente (`400`):**
+```json
+{
+  "title": "Tarea válida",
+  "status_id": 99
+}
+```
+Respuesta: `"message": "Invalid status id: 99"`
+
+---
+
+### Paso 6 — Actualizar una tarea
+
+1. Expandí `PUT /tasks/{id}`
+2. **Try it out** → ingresá `4` en el campo `id` → body:
+```json
+{
+  "title": "Mi nueva tarea",
+  "description": "Descripción actualizada",
+  "status_id": 2
+}
+```
+3. **Execute**
+4. **Resultado esperado (`200 OK`):**
+```json
+{
+  "id": 4,
+  "title": "Mi nueva tarea",
+  "description": "Descripción actualizada",
+  "status": "IN_PROGRESS",
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+Notá que `status` cambió de `PENDING` a `IN_PROGRESS`.
+
+---
+
+### Paso 7 — Eliminar una tarea
+
+1. Expandí `DELETE /tasks/{id}`
+2. **Try it out** → ingresá `4` → **Execute**
+3. **Resultado esperado (`204 No Content`)** — sin body en la respuesta
+4. Para verificar que fue eliminada, ejecutá `GET /tasks/4` — debería devolver `404`
+
+---
+
+### Paso 8 — Probar sin autenticación
+
+1. Hacé click en **Authorize** 🔒 → **Logout** → **Close**
+2. Ejecutá `GET /tasks`
+3. **Resultado esperado (`401 Unauthorized`)** — el endpoint rechaza el request sin token
+
+---
+
+## Consola H2
+
+La consola web de H2 permite inspeccionar la base de datos directamente desde el browser.
+Está disponible mientras la aplicación esté corriendo.
+
+### Cómo conectarse
+
+1. Abrí en el browser:
 ```
 http://localhost:8080/h2-console
 ```
 
+2. Completá los campos exactamente así:
+
 | Campo | Valor |
 |---|---|
+| Driver Class | `org.h2.Driver` |
 | JDBC URL | `jdbc:h2:mem:taskmanagerdb` |
-| Username | `sa` |
-| Password | *(vacío)* |
+| User Name | `sa` |
+| Password | *(dejar vacío)* |
+
+3. Hacé click en **Connect**
+
+### Queries útiles para verificar el estado
+
+**Ver todos los usuarios:**
+```sql
+SELECT id, username, full_name FROM usuarios;
+```
+
+**Ver todos los estados de tarea:**
+```sql
+SELECT * FROM estados_tarea;
+```
+
+**Ver todas las tareas:**
+```sql
+SELECT * FROM tareas;
+```
+
+**Ver tareas con sus estados y usuarios (JOIN):**
+```sql
+SELECT
+    t.id,
+    t.title,
+    t.description,
+    e.name AS status,
+    u.username AS created_by,
+    t.created_at,
+    t.updated_at
+FROM tareas t
+JOIN estados_tarea e ON t.status_id = e.id
+JOIN usuarios u ON t.user_id = u.id
+ORDER BY t.created_at DESC;
+```
+
+> **Recordá:** La base de datos es in-memory — todos los datos se pierden al reiniciar
+> la aplicación y se recrean automáticamente desde los scripts SQL.
 
 ---
 
 ## Ejemplos de uso con cURL
 
-### 1. Autenticación — obtener JWT token
+### 1. Autenticación
 
 ```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "password"
-  }'
+  -d '{"username": "admin", "password": "password"}'
 ```
-
-Respuesta exitosa (`200 OK`):
 
 ```json
 {
@@ -272,41 +505,18 @@ Respuesta exitosa (`200 OK`):
 }
 ```
 
-> Guardá el token para usar en los siguientes requests:
+> Guardá el token:
 > ```bash
 > TOKEN="eyJhbGciOiJIUzI1NiJ9..."
 > ```
 
 ---
 
-### 2. Listar todas las tareas
+### 2. Listar tareas
 
 ```bash
 curl -X GET http://localhost:8080/tasks \
   -H "Authorization: Bearer $TOKEN"
-```
-
-Respuesta exitosa (`200 OK`):
-
-```json
-[
-  {
-    "id": 3,
-    "title": "Implement authentication",
-    "description": "JWT login endpoint and security filter chain",
-    "status": "COMPLETED",
-    "created_at": "2026-04-09T20:00:00Z",
-    "updated_at": "2026-04-09T20:00:00Z"
-  },
-  {
-    "id": 2,
-    "title": "Design database schema",
-    "description": "Define all entities and relationships for the system",
-    "status": "IN_PROGRESS",
-    "created_at": "2026-04-09T19:00:00Z",
-    "updated_at": "2026-04-09T19:00:00Z"
-  }
-]
 ```
 
 ---
@@ -318,148 +528,93 @@ curl -X GET http://localhost:8080/tasks/1 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Respuesta exitosa (`200 OK`):
-
-```json
-{
-  "id": 1,
-  "title": "Setup project infrastructure",
-  "description": "Initialize repository, configure CI/CD pipeline",
-  "status": "PENDING",
-  "created_at": "2026-04-09T18:00:00Z",
-  "updated_at": "2026-04-09T18:00:00Z"
-}
-```
-
 ---
 
-### 4. Crear una nueva tarea
+### 4. Crear tarea
 
 ```bash
 curl -X POST http://localhost:8080/tasks \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "title": "Implementar nuevo feature",
-    "description": "Descripción detallada del feature",
+    "title": "Nueva tarea",
+    "description": "Descripción",
     "status_id": 1
   }'
 ```
 
-Respuesta exitosa (`201 Created`):
-
-```json
-{
-  "id": 4,
-  "title": "Implementar nuevo feature",
-  "description": "Descripción detallada del feature",
-  "status": "PENDING",
-  "created_at": "2026-04-09T21:00:00Z",
-  "updated_at": "2026-04-09T21:00:00Z"
-}
-```
-
 ---
 
-### 5. Actualizar una tarea
+### 5. Actualizar tarea
 
 ```bash
 curl -X PUT http://localhost:8080/tasks/4 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "title": "Implementar nuevo feature",
-    "description": "Feature completado y testeado",
-    "status_id": 3
+    "title": "Nueva tarea",
+    "description": "Descripción actualizada",
+    "status_id": 2
   }'
-```
-
-Respuesta exitosa (`200 OK`):
-
-```json
-{
-  "id": 4,
-  "title": "Implementar nuevo feature",
-  "description": "Feature completado y testeado",
-  "status": "COMPLETED",
-  "created_at": "2026-04-09T21:00:00Z",
-  "updated_at": "2026-04-09T21:30:00Z"
-}
 ```
 
 ---
 
-### 6. Eliminar una tarea
+### 6. Eliminar tarea
 
 ```bash
 curl -X DELETE http://localhost:8080/tasks/4 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Respuesta exitosa (`204 No Content`) — sin body.
-
 ---
 
 ### 7. Ejemplos de errores
 
 **Credenciales inválidas (`401`):**
-
 ```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "wrong"}'
 ```
-
 ```json
 {
   "message": "Invalid username or password",
   "status": 401,
-  "timestamp": "2026-04-09T21:00:00Z"
+  "timestamp": "..."
 }
 ```
 
 **Sin token (`401`):**
-
 ```bash
 curl -X GET http://localhost:8080/tasks
 ```
 
-```json
-{
-  "status": 401,
-  "error": "Unauthorized"
-}
-```
-
 **Tarea no encontrada (`404`):**
-
 ```bash
 curl -X GET http://localhost:8080/tasks/999 \
   -H "Authorization: Bearer $TOKEN"
 ```
-
 ```json
 {
   "message": "Task not found with id: 999",
   "status": 404,
-  "timestamp": "2026-04-09T21:00:00Z"
+  "timestamp": "..."
 }
 ```
 
 **Datos inválidos (`400`):**
-
 ```bash
 curl -X POST http://localhost:8080/tasks \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"description": "Sin título"}'
 ```
-
 ```json
 {
-  "message": "title: must not be null",
+  "message": "title: no debe ser nulo",
   "status": 400,
-  "timestamp": "2026-04-09T21:00:00Z"
+  "timestamp": "..."
 }
 ```
 
