@@ -1,8 +1,8 @@
 package com.nuevospa.taskmanager.service.impl;
 
 import com.nuevospa.taskmanager.exception.UnauthorizedException;
-import com.nuevospa.taskmanager.model.request.LoginRequest;
-import com.nuevospa.taskmanager.model.response.LoginResponse;
+import com.nuevospa.taskmanager.model.generated.LoginRequest;
+import com.nuevospa.taskmanager.model.generated.LoginResponse;
 import com.nuevospa.taskmanager.security.JwtUtil;
 import com.nuevospa.taskmanager.service.AuthService;
 import lombok.RequiredArgsConstructor;
@@ -23,15 +23,17 @@ public class AuthServiceImpl implements AuthService {
       try {
          authenticationManager.authenticate(
                new UsernamePasswordAuthenticationToken(
-                     request.username(),
-                     request.password()
+                     request.getUsername(),
+                     request.getPassword()
                )
          );
       } catch (BadCredentialsException ex) {
          throw new UnauthorizedException("Invalid username or password");
       }
 
-      String token = jwtUtil.generateToken(request.username());
-      return new LoginResponse(token);
+      LoginResponse response = new LoginResponse();
+      response.setToken(jwtUtil.generateToken(request.getUsername()));
+      response.setType("Bearer");
+      return response;
    }
 }

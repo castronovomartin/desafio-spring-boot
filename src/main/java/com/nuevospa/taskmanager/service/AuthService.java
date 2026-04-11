@@ -1,7 +1,7 @@
 package com.nuevospa.taskmanager.service;
 
-import com.nuevospa.taskmanager.model.request.LoginRequest;
-import com.nuevospa.taskmanager.model.response.LoginResponse;
+import com.nuevospa.taskmanager.model.generated.LoginRequest;
+import com.nuevospa.taskmanager.model.generated.LoginResponse;
 
 public interface AuthService {
 

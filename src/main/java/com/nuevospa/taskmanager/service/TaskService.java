@@ -1,7 +1,7 @@
 package com.nuevospa.taskmanager.service;
 
-import com.nuevospa.taskmanager.model.request.TaskRequest;
-import com.nuevospa.taskmanager.model.response.TaskResponse;
+import com.nuevospa.taskmanager.model.generated.TaskRequest;
+import com.nuevospa.taskmanager.model.generated.TaskResponse;
 
 import java.util.List;
 

@@ -6,8 +6,8 @@ import com.nuevospa.taskmanager.entity.User;
 import com.nuevospa.taskmanager.exception.BadRequestException;
 import com.nuevospa.taskmanager.exception.ResourceNotFoundException;
 import com.nuevospa.taskmanager.mapper.TaskMapper;
-import com.nuevospa.taskmanager.model.request.TaskRequest;
-import com.nuevospa.taskmanager.model.response.TaskResponse;
+import com.nuevospa.taskmanager.model.generated.TaskRequest;
+import com.nuevospa.taskmanager.model.generated.TaskResponse;
 import com.nuevospa.taskmanager.repository.TaskRepository;
 import com.nuevospa.taskmanager.repository.TaskStatusRepository;
 import com.nuevospa.taskmanager.repository.UserRepository;
@@ -29,25 +29,24 @@ public class TaskServiceImpl implements TaskService {
    private final UserRepository userRepository;
    private final TaskMapper taskMapper;
 
+   // Java 21 Record — encapsulates related validation data internally
+   private record TaskValidationData(Task task, TaskStatus status) {}
+
    @Override
    public List<TaskResponse> getAllTasks() {
-      return taskMapper.toResponseList(taskRepository.findAllByOrderByCreatedAtDesc());
+      return taskMapper.toResponseList(
+            taskRepository.findAllByOrderByCreatedAtDesc());
    }
 
    @Override
    public TaskResponse getTaskById(Long id) {
-      Task task = taskRepository.findById(id)
-                                .orElseThrow(() -> new ResourceNotFoundException(
-                                      "Task not found with id: " + id));
+      Task task = findTaskById(id);
       return taskMapper.toResponse(task);
    }
 
    @Override
    public TaskResponse createTask(TaskRequest request) {
-      TaskStatus status = taskStatusRepository.findById(request.statusId())
-                                              .orElseThrow(() -> new BadRequestException(
-                                                    "Invalid status id: " + request.statusId()));
-
+      TaskStatus status = findTaskStatus(request.getStatusId());
       User user = getAuthenticatedUser();
       Task task = taskMapper.toEntity(request, status, user);
       return taskMapper.toResponse(taskRepository.save(task));
@@ -55,33 +54,44 @@ public class TaskServiceImpl implements TaskService {
 
    @Override
    public TaskResponse updateTask(Long id, TaskRequest request) {
-      Task task = taskRepository.findById(id)
-                                .orElseThrow(() -> new ResourceNotFoundException(
-                                      "Task not found with id: " + id));
+      TaskValidationData validationData = new TaskValidationData(
+            findTaskById(id),
+            findTaskStatus(request.getStatusId())
+      );
 
-      TaskStatus status = taskStatusRepository.findById(request.statusId())
-                                              .orElseThrow(() -> new BadRequestException(
-                                                    "Invalid status id: " + request.statusId()));
+      validationData.task().setTitle(request.getTitle());
+      validationData.task().setDescription(request.getDescription());
+      validationData.task().setStatus(validationData.status());
 
-      task.setTitle(request.title());
-      task.setDescription(request.description());
-      task.setStatus(status);
-      return taskMapper.toResponse(taskRepository.save(task));
+      return taskMapper.toResponse(
+            taskRepository.save(validationData.task()));
    }
 
    @Override
    public void deleteTask(Long id) {
-      Task task = taskRepository.findById(id)
-                                .orElseThrow(() -> new ResourceNotFoundException(
-                                      "Task not found with id: " + id));
-      taskRepository.delete(task);
+      taskRepository.delete(findTaskById(id));
+   }
+
+   private Task findTaskById(Long id) {
+      return taskRepository.findById(id)
+                           .orElseThrow(() -> new ResourceNotFoundException(
+                                 "Task not found with id: " + id));
+   }
+
+   private TaskStatus findTaskStatus(Long statusId) {
+      if (statusId == null) {
+         throw new BadRequestException("Status ID is required");
+      }
+      return taskStatusRepository.findById(statusId)
+                                 .orElseThrow(() -> new BadRequestException(
+                                       "Invalid status id: " + statusId));
    }
 
    private User getAuthenticatedUser() {
-      Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-      String username = authentication.getName();
-      return userRepository.findByUsername(username)
+      Authentication authentication =
+            SecurityContextHolder.getContext().getAuthentication();
+      return userRepository.findByUsername(authentication.getName())
                            .orElseThrow(() -> new ResourceNotFoundException(
-                                 "Authenticated user not found: " + username));
+                                 "Authenticated user not found: " + authentication.getName()));
    }
 }
