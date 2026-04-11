@@ -241,12 +241,15 @@ components:
       type: object
       required:
         - title
+        - status_id
       properties:
         title:
           type: string
+          maxLength: 200
           example: Implementar autenticación JWT
         description:
           type: string
+          maxLength: 1000
           example: Agregar filtro de seguridad con JWT
         status_id:
           type: integer
@@ -268,7 +271,7 @@ components:
           example: Agregar filtro de seguridad con JWT
         status:
           type: string
-          example: PENDIENTE
+          example: PENDING
         created_at:
           type: string
           format: date-time

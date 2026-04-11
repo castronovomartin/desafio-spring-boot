@@ -19,6 +19,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+   private static final String BEARER_PREFIX = "Bearer ";
+
    private final JwtUtil jwtUtil;
    private final UserDetailsService userDetailsService;
 
@@ -30,12 +32,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
       final String authHeader = request.getHeader("Authorization");
 
-      if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+      if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
          filterChain.doFilter(request, response);
          return;
       }
 
-      final String token = authHeader.substring(7);
+      final String token = authHeader.substring(BEARER_PREFIX.length());
 
       if (!jwtUtil.validateToken(token)) {
          filterChain.doFilter(request, response);
@@ -44,7 +46,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
       final String username = jwtUtil.extractUsername(token);
 
-      if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+      if (username != null
+            && SecurityContextHolder.getContext().getAuthentication() == null) {
          UserDetails userDetails = userDetailsService.loadUserByUsername(username);
          UsernamePasswordAuthenticationToken authToken =
                new UsernamePasswordAuthenticationToken(
@@ -52,7 +55,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                      null,
                      userDetails.getAuthorities()
                );
-         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+         authToken.setDetails(
+               new WebAuthenticationDetailsSource().buildDetails(request));
          SecurityContextHolder.getContext().setAuthentication(authToken);
       }
 

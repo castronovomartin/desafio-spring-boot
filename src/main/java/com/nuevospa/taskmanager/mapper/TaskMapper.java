@@ -19,8 +19,10 @@ public class TaskMapper {
       response.setTitle(task.getTitle());
       response.setDescription(task.getDescription());
       response.setStatus(task.getStatus().getName());
-      response.setCreatedAt(task.getCreatedAt().atOffset(ZoneOffset.UTC));
-      response.setUpdatedAt(task.getUpdatedAt().atOffset(ZoneOffset.UTC));
+      response.setCreatedAt(task.getCreatedAt() != null
+            ? task.getCreatedAt().atOffset(ZoneOffset.UTC) : null);
+      response.setUpdatedAt(task.getUpdatedAt() != null
+            ? task.getUpdatedAt().atOffset(ZoneOffset.UTC) : null);
       return response;
    }
 

@@ -18,13 +18,14 @@ spring:
       mode: always
 
   jpa:
+    open-in-view: false
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: none
-    show-sql: true
+    show-sql: true # development only
     properties:
       hibernate:
-        format_sql: true
+        format_sql: true # development only
 
 jwt:
   secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
@@ -36,3 +37,8 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operationsSorter: method
+
+logging:
+  level:
+    org.springframework.security: WARN
+    org.hibernate.SQL: DEBUG

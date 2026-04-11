@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+   private static final String TOKEN_TYPE = "Bearer";
+
    private final AuthenticationManager authenticationManager;
    private final JwtUtil jwtUtil;
 
@@ -28,12 +30,11 @@ public class AuthServiceImpl implements AuthService {
                )
          );
       } catch (BadCredentialsException ex) {
-         throw new UnauthorizedException("Invalid username or password");
+         throw new UnauthorizedException("Invalid username or password", ex);
       }
 
-      LoginResponse response = new LoginResponse();
-      response.setToken(jwtUtil.generateToken(request.getUsername()));
-      response.setType("Bearer");
-      return response;
+      return new LoginResponse()
+            .token(jwtUtil.generateToken(request.getUsername()))
+            .type(TOKEN_TYPE);
    }
 }
